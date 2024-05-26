@@ -54,7 +54,7 @@ class ToolAgent_Agents implements INode {
                 name: 'model',
                 type: 'BaseChatModel',
                 description:
-                    'Only compatible with models that are capable of function calling. ChatOpenAI, ChatMistral, ChatAnthropic, ChatVertexAI'
+                    'Only compatible with models that are capable of function calling: ChatOpenAI, ChatMistral, ChatAnthropic, ChatGoogleGenerativeAI, ChatVertexAI, GroqChat'
             },
             {
                 label: 'System Message',
@@ -106,7 +106,7 @@ class ToolAgent_Agents implements INode {
             }
         }
 
-        const executor = prepareAgent(nodeData, options, { sessionId: this.sessionId, chatId: options.chatId, input })
+        const executor = await prepareAgent(nodeData, options, { sessionId: this.sessionId, chatId: options.chatId, input })
 
         const loggerHandler = new ConsoleCallbackHandler(options.logger)
         const callbacks = await additionalCallbacks(nodeData, options)
@@ -178,7 +178,11 @@ class ToolAgent_Agents implements INode {
     }
 }
 
-const prepareAgent = (nodeData: INodeData, options: ICommonObject, flowObj: { sessionId?: string; chatId?: string; input?: string }) => {
+const prepareAgent = async (
+    nodeData: INodeData,
+    options: ICommonObject,
+    flowObj: { sessionId?: string; chatId?: string; input?: string }
+) => {
     const model = nodeData.inputs?.model as BaseChatModel
     const maxIterations = nodeData.inputs?.maxIterations as string
     const memory = nodeData.inputs?.memory as FlowiseMemory
@@ -187,6 +191,7 @@ const prepareAgent = (nodeData: INodeData, options: ICommonObject, flowObj: { se
     tools = flatten(tools)
     const memoryKey = memory.memoryKey ? memory.memoryKey : 'chat_history'
     const inputKey = memory.inputKey ? memory.inputKey : 'input'
+    const prependMessages = options?.prependMessages
 
     const prompt = ChatPromptTemplate.fromMessages([
         ['system', systemMessage],
@@ -197,7 +202,7 @@ const prepareAgent = (nodeData: INodeData, options: ICommonObject, flowObj: { se
 
     if (llmSupportsVision(model)) {
         const visionChatModel = model as IVisionChatModal
-        const messageContent = addImagesToMessages(nodeData, options, model.multiModalOption)
+        const messageContent = await addImagesToMessages(nodeData, options, model.multiModalOption)
 
         if (messageContent?.length) {
             visionChatModel.setVisionModel()
@@ -235,7 +240,7 @@ const prepareAgent = (nodeData: INodeData, options: ICommonObject, flowObj: { se
             [inputKey]: (i: { input: string; steps: ToolsAgentStep[] }) => i.input,
             agent_scratchpad: (i: { input: string; steps: ToolsAgentStep[] }) => formatToOpenAIToolMessages(i.steps),
             [memoryKey]: async (_: { input: string; steps: ToolsAgentStep[] }) => {
-                const messages = (await memory.getChatMessages(flowObj?.sessionId, true)) as BaseMessage[]
+                const messages = (await memory.getChatMessages(flowObj?.sessionId, true, prependMessages)) as BaseMessage[]
                 return messages ?? []
             }
         },
