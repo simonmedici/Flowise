@@ -668,7 +668,7 @@ paths:
                                 embeddingConfig:
                                     type: object
                                     description: Configuration of the embedding
-                                    example: { 'model': 'text-embedding-ada-002', 'credential': '1eba5808-c55b-4817-a285-b0c92846a7ad' }
+                                    example: { 'model': 'text-embedding-ada-002', 'credential': '' }
                                 vectorStoreName:
                                     type: string
                                     description: Name of the vector store
